@@ -1,6 +1,6 @@
 'use strict'
 
-const Rx = require('rxjs')
+const Rx = require('rx')
 
 const core = require('syncthing-chat-core')
 const action = core.action
@@ -16,7 +16,7 @@ function makeCoreDriver () {
         .map(act =>
           Rx.Observable.fromPromise(core.action[act.method].apply(core.action, act.args))
         )
-        .flatMap()
+        .mergeAll(),
 
       message$: Rx.Observable.fromEvent(core.event, 'gotMessage')
     }

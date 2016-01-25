@@ -6,6 +6,9 @@
     "electron-prebuilt": "^0.36.5"
   },
   "dependencies": {
+    "@cycle/core": "^6.0.0",
+    "@cycle/dom": "^9.0.2",
+    "@cycle/isolate": "^1.2.0",
     "rx": "^4.0.7"
   },
   "scripts": {
