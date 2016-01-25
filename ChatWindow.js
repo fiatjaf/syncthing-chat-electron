@@ -12,7 +12,10 @@ function ChatWindow (sources /* : {props$, CORE, DOM}*/) {
       if (msg.folder === props.folderID) return msg
     })
     .filter(x => x)
-    .scan((messages, msg) => messages.push(msg), [])
+    .scan((messages, msg) => {
+      messages.push(msg)
+      return messages
+    }, [])
     .startWith([])
 
   let vtree$ = Rx.Observable.combineLatest(props$, messages$, (props, messages) =>

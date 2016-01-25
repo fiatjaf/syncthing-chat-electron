@@ -1,9 +1,7 @@
 'use strict'
 
 const Rx = require('rx')
-
 const core = require('syncthing-chat-core')
-const action = core.action
 
 module.exports = makeCoreDriver
 
@@ -13,10 +11,11 @@ function makeCoreDriver () {
       d: core.data,
 
       actionResponse$: action$
-        .map(act =>
-          Rx.Observable.fromPromise(core.action[act.method].apply(core.action, act.args))
-        )
-        .mergeAll(),
+        .map(act => {
+          return Rx.Observable.fromPromise(core.action[act.method].apply(core.action, act.args))
+        })
+        .mergeAll()
+        .subscribe(),
 
       message$: Rx.Observable.fromEvent(core.event, 'gotMessage')
     }
