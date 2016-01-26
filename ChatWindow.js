@@ -12,8 +12,9 @@ function ChatWindow (sources /* : {props$, CORE, DOM}*/) {
     CORE.message$,
     props$,
     (msg, props) => {
-      if (msg.folder === props.folderID) return msg
+      if (msg.content && msg.folder === props.folder.id) return msg
     })
+    .do(x => console.log('message', x))
     .filter(x => x)
     .scan((messages, msg) => {
       messages.push(msg)
@@ -21,34 +22,37 @@ function ChatWindow (sources /* : {props$, CORE, DOM}*/) {
     }, [])
     .startWith([])
 
-  let vtree$ = Rx.Observable.combineLatest(props$, messages$, (props, messages) => {
-    if (!props) {
-      return h('center', 'nothing here.')
-    }
-    return h('article', [
-      h('h1', props.name),
-      h('ul', [
-        messages.map(msg =>
-          h('li', [
-            h('time', msg.time),
-            h('div', sources.CORE.d.devices[msg.deviceID].name),
-            h('div', msg.content)
-          ])
-        )
-      ]),
-      h('form', [
-        h('input'),
-        h('button', 'SEND')
+  let vtree$ = Rx.Observable.combineLatest(
+    props$.do(x => console.log('props', x)),
+    messages$.do(x => console.log('messages', x)),
+    CORE.data$.do(x => console.log('data', x)),
+    (props, messages, data) => {
+      return h('article', [
+        h('h1', props.devices[0].name),
+        h('ul', [
+          messages.map(msg =>
+            h('li', [
+              h('time', msg.time),
+              h('div', data.devices[msg.deviceID].name),
+              h('div', msg.content)
+            ])
+          )
+        ]),
+        h('form', [
+          h('input'),
+          h('button', 'SEND')
+        ])
       ])
-    ])
-  })
+    }
+  )
+    .startWith(h('center', 'nothing here.'))
 
   let form = sources.DOM.select('form')
   let action$ = form.events('submit')
     .do(ev => ev.preventDefault())
     .withLatestFrom(props$, (ev, props) => ({
       method: 'sendMessage',
-      args: [props.folderID, ev.target.querySelector('input').value]
+      args: [props.folder.id, ev.target.querySelector('input').value]
     }))
 
   return {

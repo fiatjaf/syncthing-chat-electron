@@ -18,26 +18,18 @@ function ChatList (sources /* : {CORE, DOM}*/) {
       let dev = d.deviceByName[ev.target.innerHTML]
       let folder = d.chatFolderForDevice[dev.deviceID]
       return {
-        name: dev.name,
-        folderID: folder.id
+        folder: folder,
+        devices: [dev]
       }
-    })
-    .startWith(null)
-    .do(x => {
-      console.log('props', x)
     })
 
   let chatWindow = ChatWindow({props$, CORE, DOM})
 
-  let action$ = Rx.Observable.merge(
-    chatWindow.CORE
-  )
-
   let vtree$ = Rx.Observable.combineLatest(
     CORE.data$,
-    CORE.devices$,
-    CORE.devicesWithChat$,
-    (data, devices, devicesWithChat) => {
+    (d) => {
+      let devices = d.devices.keys().map(k => d.devices[k])
+      let devicesWithChat = d.folders.keys().map(k => d.deviceByFolderId[k])
       let devicesWithChatIds = devicesWithChat.map(d => d.deviceID)
       let devicesWithoutChat = devices.filter(d => devicesWithChatIds.indexOf(d.deviceID) === -1)
 
@@ -47,16 +39,16 @@ function ChatList (sources /* : {CORE, DOM}*/) {
         ]),
         h('nav', [
           h('ul',
-            devicesWithChat.map(d =>
+            devicesWithChat.map(dev =>
               h('li',
-                h('a', d.name)
+                h('a', dev.name || dev.deviceID)
               )
             )
           ),
           h('ul',
-            devicesWithoutChat.map(d =>
+            devicesWithoutChat.map(dev =>
               h('li',
-                h('a', d.name)
+                h('a', dev.name || dev.deviceID)
               )
             )
           )
@@ -66,6 +58,12 @@ function ChatList (sources /* : {CORE, DOM}*/) {
         h('footer', [])
       ])
     }
+  )
+    .startWith(h('div', 'loading...'))
+
+  let action$ = Rx.Observable.merge(
+    Rx.Observable.just({method: 'listDevices', args: []}),
+    chatWindow.CORE
   )
 
   return {

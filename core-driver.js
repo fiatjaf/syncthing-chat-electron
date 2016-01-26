@@ -8,6 +8,8 @@ module.exports = makeCoreDriver
 function makeCoreDriver () {
   return function coreDriver (action$) {
     let data$ = Rx.Observable.fromEvent(core.event, 'data')
+      .replay(1)
+    data$.connect()
 
     return {
       actionResponse$: action$
@@ -17,12 +19,6 @@ function makeCoreDriver () {
 
       message$: Rx.Observable.fromEvent(core.event, 'gotMessage'),
       status$: Rx.Observable.fromEvent(core.event, 'deviceStatusChanged'),
-      devices$: data$
-        .map(d => d.devices.keys().map(k => d.devices[k]))
-        .startWith([]),
-      devicesWithChat$: data$
-        .map(d => d.folders.keys().map(k => d.deviceByFolderId[k]))
-        .startWith([]),
 
       data$
     }
