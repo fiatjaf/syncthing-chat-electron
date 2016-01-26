@@ -2,9 +2,11 @@
 
 const Rx = require('rx')
 const CycleDOM = require('@cycle/dom')
+const isolate = require('@cycle/isolate')
 const h = CycleDOM.h
 
-const ChatWindow = require('./ChatWindow')
+const ChatWindow = require('./Window')
+const ChatItem = require('./Item')
 
 module.exports = ChatList
 
@@ -12,22 +14,35 @@ function ChatList (sources /* : {CORE, DOM}*/) {
   let CORE = sources.CORE
   let DOM = sources.DOM
 
-  let props$ = sources.DOM.select('nav li a').events('click')
-    .do(ev => ev.preventDefault())
-    .withLatestFrom(CORE.data$, (ev, d) => {
-      let dev = d.deviceByName[ev.target.innerHTML]
+  let chatItems$ = CORE.data$
+    .map(d => {
+      let devicesWithChat = d.folders.keys().map(k => d.deviceByFolderId[k])
+      return devicesWithChat.map(dev =>
+        isolate(ChatItem, dev.name)({CORE, DOM, props$: Rx.Observable.just({dev: dev})})
+      )
+    })
+
+  let chatWindowProps$ = chatItems$
+    .map(chatItems => Rx.Observable.from(chatItems))
+    .mergeAll()
+    .pluck('action$')
+    .mergeAll()
+    .withLatestFrom(CORE.data$, (action, d) => {
+      let dev = action.dev
       let folder = d.chatFolderForDevice[dev.deviceID]
       return {
         folder: folder,
         devices: [dev]
       }
     })
+    .do(x => console.log('chatWindowProps', x))
 
-  let chatWindow = ChatWindow({props$, CORE, DOM})
+  let chatWindow = ChatWindow({props$: chatWindowProps$, CORE, DOM})
 
   let vtree$ = Rx.Observable.combineLatest(
     CORE.data$,
-    (d) => {
+    chatItems$,
+    (d, chatItems) => {
       let devices = d.devices.keys().map(k => d.devices[k])
       let devicesWithChat = d.folders.keys().map(k => d.deviceByFolderId[k])
       let devicesWithChatIds = devicesWithChat.map(d => d.deviceID)
@@ -39,11 +54,7 @@ function ChatList (sources /* : {CORE, DOM}*/) {
         ]),
         h('nav', [
           h('ul',
-            devicesWithChat.map(dev =>
-              h('li',
-                h('a', dev.name || dev.deviceID)
-              )
-            )
+            chatItems.map(c => c.DOM)
           ),
           h('ul',
             devicesWithoutChat.map(dev =>

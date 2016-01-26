@@ -5,7 +5,7 @@ const Cycle = require('@cycle/core')
 const makeDOMDriver = require('@cycle/dom').makeDOMDriver
 
 const makeCoreDriver = require('./core-driver')
-const main = require('./ChatList')
+const main = require('./components/List')
 
 Cycle.run(main, {
   DOM: makeDOMDriver(document.documentElement),

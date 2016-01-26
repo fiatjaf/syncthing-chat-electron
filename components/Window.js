@@ -8,8 +8,9 @@ module.exports = ChatWindow
 function ChatWindow (sources /* : {props$, CORE, DOM}*/) {
   let props$ = sources.props$
   let CORE = sources.CORE
+  let DOM = sources.DOM
 
-  let form = sources.DOM.select('form')
+  let form = DOM.select('form')
   let action$ = form.events('submit')
     .map(ev => {
       ev.preventDefault()
