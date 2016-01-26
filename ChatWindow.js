@@ -1,14 +1,17 @@
 'use strict'
 
-const h = require('@cycle/dom').h
 const Rx = require('rx')
+const h = require('@cycle/dom').h
 
 module.exports = ChatWindow
 
 function ChatWindow (sources /* : {props$, CORE, DOM}*/) {
   let props$ = sources.props$
-  let messages$ = sources.CORE.message$
-    .withLatestFrom(props$, (msg, props) => {
+  let CORE = sources.CORE
+  let messages$ = Rx.Observable.combineLatest(
+    CORE.message$,
+    props$,
+    (msg, props) => {
       if (msg.folder === props.folderID) return msg
     })
     .filter(x => x)
@@ -18,8 +21,11 @@ function ChatWindow (sources /* : {props$, CORE, DOM}*/) {
     }, [])
     .startWith([])
 
-  let vtree$ = Rx.Observable.combineLatest(props$, messages$, (props, messages) =>
-    h('article', [
+  let vtree$ = Rx.Observable.combineLatest(props$, messages$, (props, messages) => {
+    if (!props) {
+      return h('center', 'nothing here.')
+    }
+    return h('article', [
       h('h1', props.name),
       h('ul', [
         messages.map(msg =>
@@ -35,7 +41,7 @@ function ChatWindow (sources /* : {props$, CORE, DOM}*/) {
         h('button', 'SEND')
       ])
     ])
-  )
+  })
 
   let form = sources.DOM.select('form')
   let action$ = form.events('submit')
