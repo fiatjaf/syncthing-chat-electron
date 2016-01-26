@@ -8,6 +8,23 @@ module.exports = ChatWindow
 function ChatWindow (sources /* : {props$, CORE, DOM}*/) {
   let props$ = sources.props$
   let CORE = sources.CORE
+
+  let form = sources.DOM.select('form')
+  let action$ = form.events('submit')
+    .map(ev => {
+      ev.preventDefault()
+      let input = ev.target.querySelector('input')
+      let content = input.value
+      input.value = ''
+      return content
+    })
+    .filter(x => x)
+    .withLatestFrom(props$, (content, props) => ({
+      method: 'sendMessage',
+      args: [props.folder.id, content]
+    }))
+    .share()
+
   let messages$ = Rx.Observable.combineLatest(
     CORE.message$,
     props$,
@@ -16,6 +33,14 @@ function ChatWindow (sources /* : {props$, CORE, DOM}*/) {
     })
     .do(x => console.log('message', x))
     .filter(x => x)
+    .merge(
+      action$.withLatestFrom(CORE.data$, (action, data) => ({
+        deviceID: data.myID,
+        time: (new Date()).toISOString(),
+        folder: action.args[0],
+        content: action.args[1]
+      }))
+    )
     .scan((messages, msg) => {
       messages.push(msg)
       return messages
@@ -46,14 +71,6 @@ function ChatWindow (sources /* : {props$, CORE, DOM}*/) {
     }
   )
     .startWith(h('center', 'nothing here.'))
-
-  let form = sources.DOM.select('form')
-  let action$ = form.events('submit')
-    .do(ev => ev.preventDefault())
-    .withLatestFrom(props$, (ev, props) => ({
-      method: 'sendMessage',
-      args: [props.folder.id, ev.target.querySelector('input').value]
-    }))
 
   return {
     DOM: vtree$,
