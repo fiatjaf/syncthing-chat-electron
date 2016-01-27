@@ -14,9 +14,7 @@ function ChatItem (sources /* : {props$, CORE, DOM}*/) {
   let action$ = DOM.events('click')
     .do(ev => ev.preventDefault())
     .share()
-    .withLatestFrom(props$, (_, props) => {
-      return {dev: props.dev}
-    })
+    .withLatestFrom(props$, (_, props) => ({dev: props.dev}))
 
   let vtree$ = props$
     .map(props =>

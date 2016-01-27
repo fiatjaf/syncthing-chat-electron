@@ -28,7 +28,7 @@ function ChatWindow (sources /* : {props$, CORE, DOM}*/) {
 
   let messages$ = Rx.Observable.combineLatest(
     CORE.message$,
-    props$,
+    props$.do(x => console.log('props', x)),
     (msg, props) => {
       if (msg.content && msg.folder === props.folder.id) return msg
     })

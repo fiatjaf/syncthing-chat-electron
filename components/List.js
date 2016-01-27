@@ -14,17 +14,16 @@ function ChatList (sources /* : {CORE, DOM}*/) {
   let CORE = sources.CORE
   let DOM = sources.DOM
 
-  let chatItems$ = CORE.data$
-    .map(d => {
-      let devicesWithChat = d.folders.keys().map(k => d.deviceByFolderId[k])
-      return devicesWithChat.map(dev =>
-        isolate(ChatItem, dev.name)({CORE, DOM, props$: Rx.Observable.just({dev: dev})})
-      )
-    })
-
-  let chatWindowProps$ = chatItems$
-    .map(chatItems => Rx.Observable.from(chatItems))
+  let chatItem$ = CORE.data$
+    .map(d =>
+      Rx.Observable.from(d.folders.keys().map(k => d.deviceByFolderId[k]))
+    )
     .mergeAll()
+    .distinct(dev => dev.deviceID)
+    .map(dev => isolate(ChatItem, dev.name)({CORE, DOM, props$: Rx.Observable.just({dev: dev})}))
+    .shareReplay(1)
+
+  let chatWindowProps$ = chatItem$
     .pluck('action$')
     .mergeAll()
     .withLatestFrom(CORE.data$, (action, d) => {
@@ -38,6 +37,13 @@ function ChatList (sources /* : {CORE, DOM}*/) {
     .do(x => console.log('chatWindowProps', x))
 
   let chatWindow = ChatWindow({props$: chatWindowProps$, CORE, DOM})
+
+  let chatItems$ = chatItem$
+    .scan((arr, ci) => {
+      arr.push(ci)
+      return arr
+    }, [])
+    .startWith([])
 
   let vtree$ = Rx.Observable.combineLatest(
     CORE.data$,
