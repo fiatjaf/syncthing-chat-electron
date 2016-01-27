@@ -40,7 +40,7 @@ function ChatList (sources /* : {CORE, DOM}*/) {
           h('h1', 'chats'),
           h('ul',
             devicesWithChat.map(dev =>
-              h('li',
+              h('li', {title: d.chatFolderForDevice[dev.deviceID].id.split('::')[1]},
                 h('a', {'href': '#/', 'deviceID': dev.deviceID}, dev.name || dev.deviceID)
               )
             )
@@ -48,11 +48,10 @@ function ChatList (sources /* : {CORE, DOM}*/) {
           h('h1', 'devices without chat'),
           h('ul',
             devicesWithoutChat.map(dev =>
-              h('li',
-                h('a', {href: '#/', attributes: {
-                  'data-id': dev.deviceID
-                }}, dev.name || dev.deviceID)
-              )
+              h('li', [
+                (dev.name || dev.deviceID) + ' ',
+                h('a', {href: '#/', dataset: {'id': dev.deviceID}}, 'create chat')
+              ])
             )
           )
         ]),
