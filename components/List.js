@@ -3,6 +3,7 @@
 const Rx = require('rx')
 const CycleDOM = require('@cycle/dom')
 const h = CycleDOM.h
+const isolate = require('@cycle/isolate')
 
 const ChatWindow = require('./Window')
 
@@ -12,6 +13,7 @@ function ChatList (sources /* : {CORE, DOM}*/) {
   let CORE = sources.CORE
   let DOM = sources.DOM
 
+  /* props for the chat window, based on the chat item we click on */
   let chatWindowProps$ = DOM.select('nav ul:first-of-type li a').events('click')
     .do(ev => ev.preventDefault())
     .withLatestFrom(CORE.data$, (ev, d) => {
@@ -22,11 +24,31 @@ function ChatList (sources /* : {CORE, DOM}*/) {
         devices: [dev]
       }
     })
-  let chatWindow = ChatWindow({props$: chatWindowProps$, CORE, DOM})
+  let chatWindow = isolate(ChatWindow, 'chat-window')({props$: chatWindowProps$, CORE, DOM})
+
+  /* adding new devices */
+  let deviceAdd$ = DOM.select('form#add-device').events('submit')
+    .do(ev => ev.preventDefault())
+    .map(ev => {
+      let input = ev.target.querySelector('input')
+      if (input) {
+        // we have the input, send it to the core driver
+        let normalized = input.value.trim().replace(/[^\w\d]/g, '')
+        if (normalized.length === 56) {
+          return {method: 'addDevice', args: [normalized]}
+        }
+      } else {
+        // show the input box
+        return true
+      }
+    })
+    .share()
+    .startWith(false)
 
   let vtree$ = Rx.Observable.combineLatest(
     CORE.data$,
-    (d) => {
+    deviceAdd$,
+    (d, deviceAdd) => {
       let devices = d.devices.keys().map(k => d.devices[k])
       let devicesWithChat = d.folders.keys().map(k => d.deviceByFolderId[k])
       let devicesWithChatIds = devicesWithChat.map(d => d.deviceID)
@@ -45,7 +67,7 @@ function ChatList (sources /* : {CORE, DOM}*/) {
               )
             )
           ),
-          h('h1', 'devices without chat'),
+          h('h1', 'peers without chat'),
           h('ul',
             devicesWithoutChat.map(dev =>
               h('li', [
@@ -53,7 +75,11 @@ function ChatList (sources /* : {CORE, DOM}*/) {
                 h('a', {href: '#/', dataset: {'id': dev.deviceID}}, 'create chat')
               ])
             )
-          )
+          ),
+          h('form', {id: 'add-device'}, [
+            deviceAdd === true ? h('input') : null,
+            h('button', deviceAdd === true ? 'ok' : 'add peer')
+          ])
         ]),
         h('main', chatWindow.DOM),
         h('aside', []),
@@ -61,8 +87,9 @@ function ChatList (sources /* : {CORE, DOM}*/) {
       ])
     }
   )
-    .startWith(h('div', 'loading...'))
+    .startWith(h('center', 'loading...'))
 
+  /* creating chats for devices without chats */
   /* global confirm */
   let createChat$ = DOM.select('nav ul:last-of-type li a').events('click')
     .do(ev => ev.preventDefault())
@@ -74,6 +101,7 @@ function ChatList (sources /* : {CORE, DOM}*/) {
     DOM: vtree$,
     CORE: Rx.Observable.merge(
       createChat$,
+      deviceAdd$.filter(x => typeof x === 'object'),
       chatWindow.CORE
     )
   }
