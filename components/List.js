@@ -6,7 +6,7 @@ const isolate = require('@cycle/isolate')
 const h = CycleDOM.h
 
 const ChatWindow = require('./Window')
-const ChatItem = require('./Item')
+const Item = require('./Item')
 
 module.exports = ChatList
 
@@ -14,15 +14,43 @@ function ChatList (sources /* : {CORE, DOM}*/) {
   let CORE = sources.CORE
   let DOM = sources.DOM
 
+  /* the components for the listed device chats */
   let chatItem$ = CORE.data$
     .map(d =>
       Rx.Observable.from(d.folders.keys().map(k => d.deviceByFolderId[k]))
     )
     .mergeAll()
     .distinct(dev => dev.deviceID)
-    .map(dev => isolate(ChatItem, dev.name)({CORE, DOM, props$: Rx.Observable.just({dev: dev})}))
-    .shareReplay(1)
+    .map(dev => isolate(Item, dev.name)({CORE, DOM, props$: Rx.Observable.just({dev: dev})}))
 
+  let chatItems$ = chatItem$
+    .scan((arr, ci) => {
+      arr.push(ci)
+      return arr
+    }, [])
+    .startWith([])
+
+  /* the components for the listed devices without chat */
+  let noChatItem$ = CORE.data$
+    .map(d => {
+      let devices = d.devices.keys().map(k => d.devices[k])
+      let devicesWithChat = d.folders.keys().map(k => d.deviceByFolderId[k])
+      let devicesWithChatIds = devicesWithChat.map(d => d.deviceID)
+      let devicesWithoutChat = devices.filter(d => devicesWithChatIds.indexOf(d.deviceID) === -1)
+      return Rx.Observable.from(devicesWithoutChat)
+    })
+    .mergeAll()
+    .distinct(dev => dev.deviceID)
+    .map(dev => isolate(Item, dev.name)({CORE, DOM, props$: Rx.Observable.just({dev: dev})}))
+
+  let noChatItems$ = noChatItem$
+    .scan((arr, ci) => {
+      arr.push(ci)
+      return arr
+    }, [])
+    .startWith([])
+
+  /* the chat window component, with props given by a click on a chatItem */
   let chatWindowProps$ = chatItem$
     .pluck('action$')
     .mergeAll()
@@ -34,40 +62,25 @@ function ChatList (sources /* : {CORE, DOM}*/) {
         devices: [dev]
       }
     })
-    .do(x => console.log('chatWindowProps', x))
-
   let chatWindow = ChatWindow({props$: chatWindowProps$, CORE, DOM})
 
-  let chatItems$ = chatItem$
-    .scan((arr, ci) => {
-      arr.push(ci)
-      return arr
-    }, [])
-    .startWith([])
-
+  /* the vtree, which uses everything */
   let vtree$ = Rx.Observable.combineLatest(
-    CORE.data$,
     chatItems$,
-    (d, chatItems) => {
-      let devices = d.devices.keys().map(k => d.devices[k])
-      let devicesWithChat = d.folders.keys().map(k => d.deviceByFolderId[k])
-      let devicesWithChatIds = devicesWithChat.map(d => d.deviceID)
-      let devicesWithoutChat = devices.filter(d => devicesWithChatIds.indexOf(d.deviceID) === -1)
-
+    noChatItems$,
+    (chatItems, noChatItems) => {
       return h('body', [
         h('header', [
           h('h1', 'Syncthing Chat')
         ]),
         h('nav', [
+          h('h1', 'Chats'),
           h('ul',
             chatItems.map(c => c.DOM)
           ),
+          h('h1', 'Devices without a chat'),
           h('ul',
-            devicesWithoutChat.map(dev =>
-              h('li',
-                h('a', dev.name || dev.deviceID)
-              )
-            )
+            noChatItems.map(c => c.DOM)
           )
         ]),
         h('main', chatWindow.DOM),
@@ -78,13 +91,19 @@ function ChatList (sources /* : {CORE, DOM}*/) {
   )
     .startWith(h('div', 'loading...'))
 
-  let action$ = Rx.Observable.merge(
-    Rx.Observable.just({method: 'listDevices', args: []}),
-    chatWindow.CORE
-  )
+  /* creating new chats based on the actions from noChatItems */
+  /* global confirm */
+  let createChatAction$ = noChatItem$
+    .pluck('action$')
+    .mergeAll()
+    .filter(act => confirm('Are you sure you want to create a chat with ' + act.dev.name + '?'))
+    .map(act => ({method: 'createChat', args: [act.dev.deviceID]}))
 
   return {
     DOM: vtree$,
-    CORE: action$
+    CORE: Rx.Observable.merge(
+      createChatAction$,
+      chatWindow.CORE
+    )
   }
 }
