@@ -4,7 +4,7 @@ const Rx = require('rx')
 const CycleDOM = require('@cycle/dom')
 const h = CycleDOM.h
 
-const ChatWindow = require('./ChatWindow')
+const ChatWindow = require('./Window')
 
 module.exports = ChatList
 
@@ -12,7 +12,7 @@ function ChatList (sources /* : {CORE, DOM}*/) {
   let CORE = sources.CORE
   let DOM = sources.DOM
 
-  let props$ = sources.DOM.select('nav li a').events('click')
+  let chatWindowProps$ = DOM.select('nav ul:first-of-type li a').events('click')
     .do(ev => ev.preventDefault())
     .withLatestFrom(CORE.data$, (ev, d) => {
       let dev = d.deviceByName[ev.target.innerHTML]
@@ -22,8 +22,7 @@ function ChatList (sources /* : {CORE, DOM}*/) {
         devices: [dev]
       }
     })
-
-  let chatWindow = ChatWindow({props$, CORE, DOM})
+  let chatWindow = ChatWindow({props$: chatWindowProps$, CORE, DOM})
 
   let vtree$ = Rx.Observable.combineLatest(
     CORE.data$,
@@ -38,17 +37,21 @@ function ChatList (sources /* : {CORE, DOM}*/) {
           h('h1', 'Syncthing Chat')
         ]),
         h('nav', [
+          h('h1', 'chats'),
           h('ul',
             devicesWithChat.map(dev =>
               h('li',
-                h('a', dev.name || dev.deviceID)
+                h('a', {'href': '#/', 'deviceID': dev.deviceID}, dev.name || dev.deviceID)
               )
             )
           ),
+          h('h1', 'devices without chat'),
           h('ul',
             devicesWithoutChat.map(dev =>
               h('li',
-                h('a', dev.name || dev.deviceID)
+                h('a', {href: '#/', attributes: {
+                  'data-id': dev.deviceID
+                }}, dev.name || dev.deviceID)
               )
             )
           )
@@ -61,13 +64,18 @@ function ChatList (sources /* : {CORE, DOM}*/) {
   )
     .startWith(h('div', 'loading...'))
 
-  let action$ = Rx.Observable.merge(
-    Rx.Observable.just({method: 'listDevices', args: []}),
-    chatWindow.CORE
-  )
+  /* global confirm */
+  let createChat$ = DOM.select('nav ul:last-of-type li a').events('click')
+    .do(ev => ev.preventDefault())
+    .withLatestFrom(CORE.data$, (ev, d) => d.devices[ev.target.dataset.id])
+    .filter(dev => confirm(`do you really want to create a chat with ${dev.name || dev.deviceID}?`))
+    .map(dev => ({method: 'createChat', args: [dev.deviceID]}))
 
   return {
     DOM: vtree$,
-    CORE: action$
+    CORE: Rx.Observable.merge(
+      createChat$,
+      chatWindow.CORE
+    )
   }
 }
