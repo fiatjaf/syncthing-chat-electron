@@ -51,8 +51,10 @@ function ChatList (sources /* : {CORE, DOM}*/) {
     (d, deviceAdd) => {
       let devices = d.devices.keys().map(k => d.devices[k])
       let devicesWithChat = d.folders.keys().map(k => d.deviceByFolderId[k])
-      let devicesWithChatIds = devicesWithChat.map(d => d.deviceID)
-      let devicesWithoutChat = devices.filter(d => devicesWithChatIds.indexOf(d.deviceID) === -1)
+      let devicesWithChatIds = devicesWithChat.map(dev => dev.deviceID)
+      let devicesWithoutChat = devices
+        .filter(dev => devicesWithChatIds.indexOf(dev.deviceID) === -1)
+        .filter(dev => dev.deviceID !== d.myID)
 
       return h('body', [
         h('header', [
