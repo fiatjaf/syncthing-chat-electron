@@ -1,5 +1,6 @@
 'use strict'
 
+const fecha = require('fecha')
 const Rx = require('rx')
 const h = require('@cycle/dom').h
 
@@ -55,13 +56,23 @@ function ChatWindow (sources /* : {props$, CORE, DOM}*/) {
       return h('article', [
         h('h1', props.devices[0].name),
         h('ul', [
-          messages.map(msg =>
-            h('li', [
-              h('time', msg.time),
+          messages.map(msg => {
+            let date = new Date(Date.parse(msg.time))
+            var time
+            if (msg.time.split('T')[0] === (new Date()).toISOString().split('-')[0]) {
+              time = `today at ${fecha.format(date, 'HH:mm:ss')}`
+            } else if (date.getFullYear() === (new Date()).getFullYear()) {
+              time = `${fecha.format(date, 'MMM D')} at ${fecha.format(date, 'HH:mm')}`
+            } else {
+              time = `${fecha.format(date, 'MMM D, YYYY')} at ${fecha.format(date, 'HH:mm')}`
+            }
+
+            return h('li', [
+              h('time', time),
               h('div', data.devices[msg.deviceID].name),
               h('div', msg.content)
             ])
-          )
+          })
         ]),
         h('form', [
           h('input'),
