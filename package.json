@@ -20,7 +20,7 @@
     "type": "git",
     "url": "git+https://github.com/fiatjaf/syncthing-chat-electron.git"
   },
-  "author": "Giovanni T. Parra",
+  "author": "fiatjaf",
   "license": "MIT",
   "bugs": {
     "url": "https://github.com/fiatjaf/syncthing-chat-electron/issues"

@@ -1,9 +1,12 @@
 'use strict'
 
+const fs = require('fs')
 const Rx = require('rx')
 const CycleDOM = require('@cycle/dom')
 const h = CycleDOM.h
 const isolate = require('@cycle/isolate')
+
+const style = fs.readFileSync('style.css', 'utf8')
 
 const ChatWindow = require('./Window')
 
@@ -85,7 +88,8 @@ function ChatList (sources /* : {CORE, DOM}*/) {
         ]),
         h('main', chatWindow.DOM),
         h('aside', []),
-        h('footer', [])
+        h('footer', []),
+        h('style', style)
       ])
     }
   )
