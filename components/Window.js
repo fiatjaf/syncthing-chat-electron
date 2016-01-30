@@ -37,7 +37,7 @@ function ChatWindow (sources /* : {props$, CORE, DOM}*/) {
     .merge(
       action$.withLatestFrom(CORE.data$, (action, data) => ({
         deviceID: data.myID,
-        time: (new Date()).toISOString(),
+        time: new Date(),
         folder: action.args[0],
         content: action.args[1]
       }))
@@ -57,9 +57,9 @@ function ChatWindow (sources /* : {props$, CORE, DOM}*/) {
         h('h1', props.devices[0].name),
         h('ul', [
           messages.map(msg => {
-            let date = new Date(Date.parse(msg.time))
+            var date = msg.time
             var time
-            if (msg.time.split('T')[0] === (new Date()).toISOString().split('-')[0]) {
+            if (date.toISOString().split('T')[0] === (new Date()).toISOString().split('-')[0]) {
               time = `today at ${fecha.format(date, 'HH:mm:ss')}`
             } else if (date.getFullYear() === (new Date()).getFullYear()) {
               time = `${fecha.format(date, 'MMM D')} at ${fecha.format(date, 'HH:mm')}`
